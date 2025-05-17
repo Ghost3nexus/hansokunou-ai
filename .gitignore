@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# IDEs and editors
+.vscode/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Misc
+.DS_Store
+
