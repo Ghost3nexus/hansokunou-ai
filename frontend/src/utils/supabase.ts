@@ -12,9 +12,11 @@ export type UserSubscription = {
   id?: string;
   email: string;
   plan: 'lite' | 'standard' | 'premium';
-  subscription_status: 'active' | 'canceled';
+  subscription_status: 'active' | 'canceled' | 'pending';
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
+  trial_end?: string;
+  current_period_end?: string;
   updated_at?: string;
 };
 
@@ -58,10 +60,14 @@ export const createOrUpdateUser = async (user: UserSubscription): Promise<UserSu
     
     return data as UserSubscription;
   } else {
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 30);
+    
     const { data, error } = await supabaseAdmin
       .from('users')
       .insert({
         ...user,
+        trial_end: trialEnd.toISOString(),
         updated_at: new Date().toISOString(),
       })
       .select()
