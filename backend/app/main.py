@@ -135,8 +135,8 @@ async def fetch_url_content(url: str) -> dict:
             category_links = [el.get_text(strip=True) for el in soup.select(".collection-link, .nav-link")]
             
             social_links = {
-                "instagram": next((a['href'] for a in soup.select("a[href*='instagram.com']")), None),
-                "twitter": next((a['href'] for a in soup.select("a[href*='twitter.com']")), None)
+                "instagram": next((a['href'] for a in soup.select("a[href*='instagram.com']")), ""),
+                "twitter": next((a['href'] for a in soup.select("a[href*='twitter.com']")), "")
             }
             
             return {
