@@ -122,7 +122,7 @@ app.include_router(router)
 async def fetch_url_content(url: str) -> dict:
     """Fetch content from a URL and extract relevant information."""
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.get(url)
             response.raise_for_status()
             
@@ -274,33 +274,53 @@ async def analyze_url(request: UrlAnalysisRequest, background_tasks: BackgroundT
         
         diagnostic_scores = generate_diagnostic_scores(url_data)
         
-        product_names = [
-            "プレミアムTシャツ",
-            "オーガニックコットンパーカー",
-            "ストレッチデニムジーンズ",
-            "防水アウトドアジャケット"
-        ]
+        product_names = url_data.get("product_names", [])
+        if not product_names:
+            product_names = [
+                "プレミアムTシャツ",
+                "オーガニックコットンパーカー",
+                "ストレッチデニムジーンズ",
+                "防水アウトドアジャケット"
+            ]
         
-        category_links = [
-            f"{url}/category/clothing",
-            f"{url}/category/accessories",
-            f"{url}/category/footwear"
-        ]
+        category_links = url_data.get("category_links", [])
+        if not category_links:
+            category_links = [
+                f"{url}/category/clothing",
+                f"{url}/category/accessories",
+                f"{url}/category/footwear"
+            ]
         
-        prices = [2980, 5980, 7980, 12800]
+        prices = []
+        for price_str in url_data.get("prices", []):
+            try:
+                price_numeric = ''.join(filter(str.isdigit, price_str))
+                if price_numeric:
+                    prices.append(int(price_numeric))
+            except:
+                pass
         
-        social_links = {
-            "instagram": "https://instagram.com/sample_store",
-            "twitter": "https://twitter.com/sample_store"
-        }
+        if not prices:
+            prices = [2980, 5980, 7980, 12800]
         
-        competitor_summary = "競合他社と比較して、価格帯は中程度ですが、商品の品質とブランドイメージで差別化できる可能性があります。"
+        social_links = url_data.get("social_links", {})
+        if not social_links or (not social_links.get("instagram") and not social_links.get("twitter")):
+            social_links = {
+                "instagram": "https://instagram.com/sample_store",
+                "twitter": "https://twitter.com/sample_store"
+            }
+        
+        price_range = "N/A"
+        if prices:
+            price_range = f"{min(prices):,}円〜{max(prices):,}円"
+        
+        competitor_summary = f"商品数: {len(product_names)}点、価格帯: {price_range}、カテゴリー数: {len(category_links)}個"
         
         analysis_result = AnalysisResponse(
             url=url,
-            product_names=product_names,
-            category_links=category_links,
-            prices=prices,
+            product_names=product_names[:10],  # 最大10件まで
+            category_links=category_links[:10],  # 最大10件まで
+            prices=prices[:10],  # 最大10件まで
             advice=advice,
             competitor_summary=competitor_summary,
             social_links=social_links,

@@ -42,16 +42,24 @@ export default function Analyze() {
       const data = await response.json();
       setResult(data);
       
-      await fetch('/api/save-history', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url,
-          analysis_result: data,
-        }),
-      });
+      try {
+        const saveResponse = await fetch('/api/save-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url,
+            analysis_result: data,
+          }),
+        });
+        
+        if (!saveResponse.ok) {
+          console.warn('Failed to save analysis history:', await saveResponse.json());
+        }
+      } catch (saveErr) {
+        console.warn('Error saving analysis history:', saveErr);
+      }
     } catch (err) {
       console.error('Error analyzing URL:', err);
       setError(err instanceof Error ? err.message : '分析中にエラーが発生しました');
