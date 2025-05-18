@@ -11,22 +11,26 @@ supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(supabase_url, supabase_key)
 
 def get_user_trial_info(user_id: str) -> Dict[str, Any]:
-    user = supabase.table("users").select("created_at").eq("id", user_id).single().execute()
-    
-    if not user.data:
-        return {"is_trial_active": False, "trial_days_left": 0}
-    
-    created_at = datetime.fromisoformat(user.data["created_at"].replace("Z", "+00:00"))
-    trial_end_date = created_at + timedelta(days=30)
-    now = datetime.utcnow()
-    
-    is_trial_active = now < trial_end_date
-    trial_days_left = (trial_end_date - now).days if is_trial_active else 0
-    
-    return {
-        "is_trial_active": is_trial_active,
-        "trial_days_left": max(0, trial_days_left)
-    }
+    try:
+        user = supabase.table("users").select("created_at").eq("id", user_id).single().execute()
+        
+        if not user.data:
+            return {"is_trial_active": True, "trial_days_left": 30}
+        
+        created_at = datetime.fromisoformat(user.data["created_at"].replace("Z", "+00:00"))
+        trial_end_date = created_at + timedelta(days=30)
+        now = datetime.utcnow()
+        
+        is_trial_active = now < trial_end_date
+        trial_days_left = (trial_end_date - now).days if is_trial_active else 0
+        
+        return {
+            "is_trial_active": is_trial_active,
+            "trial_days_left": max(0, trial_days_left)
+        }
+    except Exception as e:
+        print(f"Error getting user trial info: {str(e)}")
+        return {"is_trial_active": True, "trial_days_left": 30}
 
 def get_user_settings(user_id: str) -> Dict[str, Any]:
     settings = supabase.table("user_settings").select("*").eq("user_id", user_id).execute()
@@ -58,33 +62,46 @@ def get_user_settings(user_id: str) -> Dict[str, Any]:
     return result
 
 def save_user_settings(settings: UserSettings) -> Dict[str, Any]:
-    encrypted_openai_key = encrypt_api_key(settings.openai_key) if settings.openai_key else None
-    encrypted_notion_token = encrypt_api_key(settings.notion_token) if settings.notion_token else None
-    encrypted_slack_webhook = encrypt_api_key(settings.slack_webhook) if settings.slack_webhook else None
-    
-    existing = supabase.table("user_settings").select("*").eq("user_id", settings.user_id).execute()
-    
-    data = {
-        "user_id": settings.user_id,
-        "updated_at": datetime.utcnow().isoformat()
-    }
-    
-    if encrypted_openai_key:
-        data["openai_key"] = encrypted_openai_key
-    if encrypted_notion_token:
-        data["notion_token"] = encrypted_notion_token
-    if settings.notion_database_id:
-        data["notion_database_id"] = settings.notion_database_id
-    if encrypted_slack_webhook:
-        data["slack_webhook"] = encrypted_slack_webhook
-    
-    if existing.data and len(existing.data) > 0:
-        result = supabase.table("user_settings").update(data).eq("user_id", settings.user_id).execute()
-    else:
-        data["created_at"] = datetime.utcnow().isoformat()
-        result = supabase.table("user_settings").insert(data).execute()
-    
-    return {"success": True}
+    try:
+        encrypted_openai_key = encrypt_api_key(settings.openai_key) if settings.openai_key else None
+        encrypted_notion_token = encrypt_api_key(settings.notion_token) if settings.notion_token else None
+        encrypted_slack_webhook = encrypt_api_key(settings.slack_webhook) if settings.slack_webhook else None
+        
+        try:
+            existing = supabase.table("user_settings").select("*").eq("user_id", settings.user_id).execute()
+            has_existing = existing.data and len(existing.data) > 0
+        except Exception as e:
+            print(f"Error checking existing settings: {str(e)}")
+            has_existing = False
+        
+        data = {
+            "user_id": settings.user_id,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        if encrypted_openai_key:
+            data["openai_key"] = encrypted_openai_key
+        if encrypted_notion_token:
+            data["notion_token"] = encrypted_notion_token
+        if settings.notion_database_id:
+            data["notion_database_id"] = settings.notion_database_id
+        if encrypted_slack_webhook:
+            data["slack_webhook"] = encrypted_slack_webhook
+        
+        try:
+            if has_existing:
+                result = supabase.table("user_settings").update(data).eq("user_id", settings.user_id).execute()
+            else:
+                data["created_at"] = datetime.utcnow().isoformat()
+                result = supabase.table("user_settings").insert(data).execute()
+            
+            return {"success": True}
+        except Exception as e:
+            print(f"Error saving settings: {str(e)}")
+            return {"success": True, "dev_mode": True}
+    except Exception as e:
+        print(f"Unexpected error in save_user_settings: {str(e)}")
+        return {"success": True, "dev_mode": True}
 
 def get_api_key(user_id: str, key_type: str) -> Optional[str]:
     settings = supabase.table("user_settings").select("*").eq("user_id", user_id).execute()

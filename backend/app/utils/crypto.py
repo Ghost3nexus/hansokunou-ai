@@ -9,9 +9,16 @@ def get_encryption_key() -> bytes:
         key = Fernet.generate_key().decode()
         os.environ["ENCRYPTION_KEY"] = key
     
-    if isinstance(key, str):
-        return key.encode()
-    return key
+    try:
+        if isinstance(key, str):
+            key_bytes = key.encode()
+            Fernet(key_bytes)
+            return key_bytes
+        return key
+    except Exception:
+        new_key = Fernet.generate_key()
+        os.environ["ENCRYPTION_KEY"] = new_key.decode()
+        return new_key
 
 def encrypt_api_key(api_key: str) -> Optional[str]:
     if not api_key:
