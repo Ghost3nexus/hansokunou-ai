@@ -56,6 +56,66 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.models.user_settings import UserSettings, UserSettingsResponse
+from app.utils.supabase import get_user_settings, save_user_settings, get_api_key
+from typing import Dict, Any
+
+router = APIRouter(prefix="/api", tags=["user_settings"])
+
+@router.get("/user-settings/{user_id}", response_model=UserSettingsResponse)
+async def get_settings(user_id: str):
+    """
+    ユーザー設定を取得するエンドポイント。
+    APIキーは実際の値を返さず、設定済みかどうかのフラグのみを返す。
+    """
+    try:
+        settings = get_user_settings(user_id)
+        return settings
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"設定の取得中にエラーが発生しました: {str(e)}"
+        )
+
+@router.post("/user-settings", response_model=Dict[str, Any])
+async def save_settings(settings: UserSettings):
+    """
+    ユーザー設定を保存するエンドポイント。
+    APIキーは暗号化して保存される。
+    """
+    try:
+        result = save_user_settings(settings)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"設定の保存中にエラーが発生しました: {str(e)}"
+        )
+
+@router.get("/get-api-key/{user_id}/{key_type}")
+async def get_key(user_id: str, key_type: str):
+    """
+    実際のAPIキーを取得するエンドポイント（内部利用のみ）。
+    """
+    try:
+        key = get_api_key(user_id, key_type)
+        if not key:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="APIキーが設定されていません"
+            )
+        return {"key": key}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"APIキーの取得中にエラーが発生しました: {str(e)}"
+        )
+
+app.include_router(router)
+
 async def fetch_url_content(url: str) -> dict:
     """Fetch content from a URL and extract relevant information."""
     try:

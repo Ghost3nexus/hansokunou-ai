@@ -7,9 +7,14 @@ export default function Settings() {
   const { data: session } = useSession();
   const [openaiKey, setOpenaiKey] = useState('');
   const [notionToken, setNotionToken] = useState('');
+  const [notionDatabaseId, setNotionDatabaseId] = useState('');
   const [slackWebhook, setSlackWebhook] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
+  const [trialInfo, setTrialInfo] = useState({ 
+    isTrialActive: false, 
+    trialDaysLeft: 0 
+  });
   
   useEffect(() => {
     const fetchSettings = async () => {
@@ -19,7 +24,12 @@ export default function Settings() {
           const data = await response.json();
           setOpenaiKey(data.openai_key || '');
           setNotionToken(data.notion_token || '');
+          setNotionDatabaseId(data.notion_database_id || '');
           setSlackWebhook(data.slack_webhook || '');
+          setTrialInfo({
+            isTrialActive: data.is_trial_active || false,
+            trialDaysLeft: data.trial_days_left || 0
+          });
         }
       } catch (error) {
         console.error('Error fetching settings:', error);
@@ -45,6 +55,7 @@ export default function Settings() {
         body: JSON.stringify({
           openai_key: openaiKey,
           notion_token: notionToken,
+          notion_database_id: notionDatabaseId,
           slack_webhook: slackWebhook,
         }),
       });
@@ -53,7 +64,7 @@ export default function Settings() {
         setSaveMessage({ type: 'success', text: '設定を保存しました' });
       } else {
         const error = await response.json();
-        setSaveMessage({ type: 'error', text: error.message || '設定の保存に失敗しました' });
+        setSaveMessage({ type: 'error', text: error.detail || '設定の保存に失敗しました' });
       }
     } catch (error) {
       setSaveMessage({ type: 'error', text: '設定の保存中にエラーが発生しました' });
@@ -93,6 +104,16 @@ export default function Settings() {
               <label htmlFor="openai_key" className="block text-sm font-medium text-gray-700 mb-1">
                 OpenAI APIキー
               </label>
+              {trialInfo.isTrialActive && (
+                <div className="text-sm text-blue-600 mb-1">
+                  初月無料期間中です（残り{trialInfo.trialDaysLeft}日）。自分のAPIキーの設定は不要です。
+                </div>
+              )}
+              {!trialInfo.isTrialActive && !openaiKey && (
+                <div className="text-sm text-red-600 mb-1">
+                  無料期間が終了しました。分析を続けるにはAPIキーを設定してください。
+                </div>
+              )}
               <input
                 id="openai_key"
                 type="password"
@@ -114,6 +135,20 @@ export default function Settings() {
                 onChange={(e) => setNotionToken(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="secret_..."
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="notion_database_id" className="block text-sm font-medium text-gray-700 mb-1">
+                Notion データベースID
+              </label>
+              <input
+                id="notion_database_id"
+                type="text"
+                value={notionDatabaseId}
+                onChange={(e) => setNotionDatabaseId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="a1b2c3d4e5f6..."
               />
             </div>
             
