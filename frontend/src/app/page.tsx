@@ -12,11 +12,10 @@ export default function Home() {
     setIsLoading(true);
     
     try {
-      const response = await fetch("https://test-app-tunnel-8fdd5qkm.devinapps.com/analyze", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Basic " + btoa("user:5c6bfb6e4cf7ddfeb9d4e5289661adf4")
         },
         body: JSON.stringify({ url }),
       });

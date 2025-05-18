@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import os
 from supabase import create_client
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from app.models.user_settings import UserSettings
 from app.utils.crypto import encrypt_api_key, decrypt_api_key
@@ -121,3 +121,76 @@ def get_api_key(user_id: str, key_type: str) -> Optional[str]:
         return os.environ.get("OPENAI_API_KEY")
     
     return decrypt_api_key(encrypted_key)
+
+def save_analysis_history(
+    user_email: str,
+    url: str,
+    summary_json: Dict[str, Any],
+    tags: List[str] = []
+) -> Optional[str]:
+    """
+    分析履歴をSupabaseに保存する。
+    """
+    try:
+        product_count = len(summary_json.get("product_names", []))
+        category_count = len(summary_json.get("category_links", []))
+        price_count = len(summary_json.get("prices", []))
+        
+        has_advice = bool(summary_json.get("advice"))
+        advice_summary = summary_json.get("advice", "")[:200] if summary_json.get("advice") else None
+        
+        notion_page_url = summary_json.get("notion_page_url")
+        
+        scores = {}
+        if summary_json.get("diagnostic_scores"):
+            scores = {
+                "sns_score": summary_json["diagnostic_scores"].get("sns_score", 0),
+                "structure_score": summary_json["diagnostic_scores"].get("structure_score", 0),
+                "ux_score": summary_json["diagnostic_scores"].get("ux_score", 0),
+                "app_score": summary_json["diagnostic_scores"].get("app_score", 0),
+                "theme_score": summary_json["diagnostic_scores"].get("theme_score", 0)
+            }
+        
+        data = {
+            "user_email": user_email,
+            "url": url,
+            "product_count": product_count,
+            "category_count": category_count,
+            "price_count": price_count,
+            "has_advice": has_advice,
+            "advice_summary": advice_summary,
+            "notion_page_url": notion_page_url,
+            "tags": tags,
+            "summary_json": summary_json,
+            **scores
+        }
+        
+        result = supabase.table("analysis_history").insert(data).execute()
+        
+        if result.data and len(result.data) > 0:
+            return result.data[0].get("id")
+        
+        return None
+    except Exception as e:
+        print(f"Error saving analysis history: {str(e)}")
+        return None
+
+def get_analysis_history(user_email: str, tag_filter: List[str] = None) -> List[Dict[str, Any]]:
+    """
+    ユーザーの分析履歴を取得する。
+    """
+    try:
+        query = supabase.table("analysis_history").select("*").eq("user_email", user_email).order("analyzed_at", {"ascending": False})
+        
+        if tag_filter and len(tag_filter) > 0:
+            query = query.contains("tags", tag_filter)
+        
+        result = query.execute()
+        
+        if result.data:
+            return result.data
+        
+        return []
+    except Exception as e:
+        print(f"Error getting analysis history: {str(e)}")
+        return []
