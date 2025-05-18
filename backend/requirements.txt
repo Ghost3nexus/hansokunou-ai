@@ -1,5 +1,6 @@
 annotated-types==0.7.0
 anyio==4.9.0
+beautifulsoup4==4.12.2
 click==8.2.0
 cryptography==41.0.5
 fastapi==0.115.12
@@ -7,6 +8,8 @@ h11==0.14.0
 httpcore>=0.17.0
 httpx>=0.24.0,<0.28.0
 idna==3.10
+jinja2==3.1.2
+pdfkit==1.0.0
 pydantic==2.11.4
 pydantic_core==2.33.2
 python-dotenv==1.1.0

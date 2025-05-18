@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
 import httpx
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl, Field
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -58,7 +59,9 @@ async def health_check():
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.models.user_settings import UserSettings, UserSettingsResponse
-from app.utils.supabase import get_user_settings, save_user_settings, get_api_key
+from app.models.analysis_history import SaveHistoryRequest, HistoryResponse, AnalysisHistoryItem
+from app.utils.supabase import get_user_settings, save_user_settings, get_api_key, save_analysis_history, get_analysis_history
+from app.utils.pdf_generator import generate_pdf_report
 from typing import Dict, Any
 
 router = APIRouter(prefix="/api", tags=["user_settings"])
@@ -123,18 +126,31 @@ async def fetch_url_content(url: str) -> dict:
             response = await client.get(url)
             response.raise_for_status()
             
+            html_content = response.text
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            product_names = [el.get_text(strip=True) for el in soup.select(".product-title, .product-name")]
+            prices = [el.get_text(strip=True) for el in soup.select(".price, .product-price")]
+            
+            category_links = [el.get_text(strip=True) for el in soup.select(".collection-link, .nav-link")]
+            
+            social_links = {
+                "instagram": next((a['href'] for a in soup.select("a[href*='instagram.com']")), None),
+                "twitter": next((a['href'] for a in soup.select("a[href*='twitter.com']")), None)
+            }
+            
             return {
-                "title": "Sample E-commerce Store",
-                "meta_description": "Quality products at affordable prices",
-                "product_count": random.randint(10, 100),
-                "category_count": random.randint(5, 20),
-                "has_social_links": random.choice([True, False]),
-                "social_platforms": ["instagram", "twitter", "facebook"] if random.random() > 0.3 else ["instagram"],
-                "has_search": random.choice([True, False]),
-                "mobile_friendly": random.random() > 0.2,
-                "has_reviews": random.random() > 0.4,
-                "has_wishlist": random.random() > 0.5,
-                "payment_methods": random.randint(1, 5),
+                "title": soup.title.string if soup.title else "Sample E-commerce Store",
+                "meta_description": next((meta['content'] for meta in soup.select("meta[name='description']")), "Quality products at affordable prices"),
+                "product_names": product_names,
+                "prices": prices,
+                "category_links": category_links,
+                "product_count": len(product_names),
+                "category_count": len(category_links),
+                "social_links": social_links,
+                "has_search": bool(soup.select("form[action*='search']")),
+                "mobile_friendly": bool(soup.select("meta[name='viewport']")),
+                "has_reviews": bool(soup.select(".review, .reviews")),
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching URL content: {str(e)}")
@@ -189,7 +205,33 @@ async def generate_gpt_advice(url_data: dict) -> str:
 """
         return advice
     
-    return "OpenAI APIを使用した詳細な分析結果がここに表示されます。"
+    try:
+        import openai
+        openai.api_key = openai_api_key
+        
+        competitor_summary = {
+            "product_count": url_data.get("product_count", 0),
+            "price_range": f"{min(url_data.get('prices', [0]))}〜{max(url_data.get('prices', [0]))}" if url_data.get('prices') else "N/A",
+            "social_links": url_data.get("social_links", {})
+        }
+        
+        prompt = f"""
+        あなたはECサイト分析の専門家です。
+        このサイトの商品数は {url_data.get('product_count', 0)} 個で、価格帯は {competitor_summary['price_range']} です。
+        Instagramリンクは {url_data.get('social_links', {}).get('instagram', 'なし')}、Twitterリンクは {url_data.get('social_links', {}).get('twitter', 'なし')} です。
+        競合サイトと比較して、強みと弱みを簡潔にコメントしてください。
+        """
+        
+        completion = await openai.ChatCompletion.acreate(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=500
+        )
+        
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error generating GPT advice: {str(e)}")
+        return "OpenAI APIを使用した詳細な分析結果がここに表示されます。"
 
 async def save_to_notion(analysis_result: dict) -> Optional[str]:
     """Save analysis results to Notion and return the page URL."""
@@ -272,3 +314,117 @@ async def analyze_url(request: UrlAnalysisRequest, background_tasks: BackgroundT
         return analysis_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing URL: {str(e)}")
+
+@app.post("/api/save-history")
+async def save_history(request: SaveHistoryRequest):
+    """
+    分析履歴を保存するエンドポイント。
+    """
+    try:
+        result = save_analysis_history(
+            user_email=request.user_email,
+            url=request.url,
+            summary_json=request.analysis_result,
+            tags=request.analysis_result.get("tags", [])
+        )
+        
+        if not result:
+            raise HTTPException(
+                status_code=500,
+                detail="分析履歴の保存に失敗しました"
+            )
+        
+        return {"id": result, "status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"分析履歴の保存中にエラーが発生しました: {str(e)}"
+        )
+
+@app.get("/api/history", response_model=HistoryResponse)
+async def get_history(user_email: str, tags: Optional[List[str]] = None):
+    """
+    ユーザーの分析履歴を取得するエンドポイント。
+    """
+    try:
+        history_items = get_analysis_history(user_email, tags)
+        
+        items = []
+        for item in history_items:
+            diagnostic_scores = {
+                "sns_score": item.get("sns_score", 0),
+                "structure_score": item.get("structure_score", 0),
+                "ux_score": item.get("ux_score", 0),
+                "app_score": item.get("app_score", 0),
+                "theme_score": item.get("theme_score", 0)
+            }
+            
+            history_item = AnalysisHistoryItem(
+                id=item.get("id"),
+                url=item.get("url"),
+                analyzed_at=item.get("analyzed_at"),
+                product_count=item.get("product_count", 0),
+                category_count=item.get("category_count", 0),
+                price_count=item.get("price_count", 0),
+                has_advice=item.get("has_advice", False),
+                advice_summary=item.get("advice_summary"),
+                notion_page_url=item.get("notion_page_url"),
+                tags=item.get("tags", []),
+                summary_json=item.get("summary_json", {}),
+                diagnostic_scores=diagnostic_scores
+            )
+            
+            items.append(history_item)
+        
+        return HistoryResponse(items=items)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"分析履歴の取得中にエラーが発生しました: {str(e)}"
+        )
+
+@app.post("/api/generate-pdf")
+async def generate_pdf(request: AnalysisResponse):
+    """
+    分析結果からPDFレポートを生成するエンドポイント。
+    """
+    try:
+        diagnostic_scores = None
+        if hasattr(request, 'diagnostic_scores') and request.diagnostic_scores:
+            diagnostic_scores = {
+                "sns_score": request.diagnostic_scores.sns_score,
+                "structure_score": request.diagnostic_scores.structure_score,
+                "ux_score": request.diagnostic_scores.ux_score,
+                "app_score": request.diagnostic_scores.app_score,
+                "theme_score": request.diagnostic_scores.theme_score
+            }
+        
+        social_links = {}
+        if hasattr(request, 'social_links') and request.social_links:
+            social_links = request.social_links
+        
+        pdf_bytes = generate_pdf_report(
+            url=request.url,
+            product_names=request.product_names,
+            category_links=request.category_links,
+            prices=[str(price) for price in request.prices],
+            advice=request.advice or "",
+            competitor_summary=request.competitor_summary,
+            social_links=social_links,
+            diagnostic_scores=diagnostic_scores
+        )
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=hansokunou_analysis_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDFの生成中にエラーが発生しました: {str(e)}"
+        )
