@@ -13,3 +13,10 @@ dist/
 # Misc
 .DS_Store
 
+
+# Python virtual environment
+venv/
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
