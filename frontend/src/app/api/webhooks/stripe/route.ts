@@ -55,7 +55,7 @@ export async function POST(request: Request) {
           await createOrUpdateUser({
             email,
             plan,
-            subscription_status: subscription.status === 'active' ? 'active' : 'canceled',
+            subscription_status: subscription.status === 'active' || subscription.status === 'trialing' ? 'active' : 'canceled',
             stripe_customer_id: customerId,
             stripe_subscription_id: subscription.id,
             current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),

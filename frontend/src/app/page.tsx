@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/utils/apiClient";
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -12,15 +13,13 @@ export default function Home() {
     setIsLoading(true);
     
     try {
-      const response = await fetch("/api/analyze", {
+      const data = await apiFetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url }),
       });
-      
-      const data = await response.json();
       console.log("Analysis result:", data);
       
       alert("分析結果がコンソールに表示されました。開発者ツールを開いて確認してください。");

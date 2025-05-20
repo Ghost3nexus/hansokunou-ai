@@ -3,13 +3,12 @@ import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const token = await getToken({ req: request });
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   
-  const publicPaths = ["/login", "/api/auth", "/pricing"];
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
+  const protectedPaths = ['/dashboard', '/analyze', '/settings'];
+  const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p));
   
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth')) {
+  if (request.nextUrl.pathname.startsWith('/api/') && !request.nextUrl.pathname.startsWith('/api/auth')) {
     if (!token) {
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -18,23 +17,20 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  if (!token && !isPublicPath) {
-    const url = new URL(`/login`, request.url);
-    url.searchParams.set("callbackUrl", encodeURI(pathname));
-    return NextResponse.redirect(url);
+  if (!token && isProtected) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
   
-  if (token && !isPublicPath) {
+  if (token && isProtected) {
     const subscription = token.subscription as any;
-    const protectedRoutes = ["/analyze", "/dashboard", "/settings"];
-    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-    
-    if (isProtectedRoute && (!subscription || subscription.status === 'lite')) {
+    if (!subscription || subscription.status === 'lite') {
       return NextResponse.redirect(new URL("/pricing", request.url));
     }
   }
   
-  if (token && pathname === "/login") {
+  if (token && request.nextUrl.pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
   
@@ -42,5 +38,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ['/dashboard(.*)', '/analyze(.*)', '/settings(.*)', '/api/((?!auth).*)'],
 };

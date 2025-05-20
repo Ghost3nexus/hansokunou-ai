@@ -1,4 +1,5 @@
 import { ShopifyRevenueData, ShopifyStore } from '../types/shopify';
+import { apiFetch } from './apiClient';
 
 /**
  * Start the Shopify OAuth flow
@@ -6,14 +7,7 @@ import { ShopifyRevenueData, ShopifyStore } from '../types/shopify';
  */
 export const connectShopifyStore = async (userEmail: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/shopify/oauth/start?user_email=${encodeURIComponent(userEmail)}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to start Shopify OAuth flow');
-    }
-    
-    const data = await response.json();
+    const data = await apiFetch<{ authorization_url: string }>(`/api/shopify/oauth/start?user_email=${encodeURIComponent(userEmail)}`);
     window.location.href = data.authorization_url;
   } catch (error) {
     console.error('Error connecting Shopify store:', error);
@@ -28,18 +22,13 @@ export const connectShopifyStore = async (userEmail: string): Promise<void> => {
  */
 export const disconnectShopifyStore = async (userEmail: string, storeDomain: string): Promise<void> => {
   try {
-    const response = await fetch('/api/shopify/disconnect', {
+    await apiFetch('/api/shopify/disconnect', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ user_email: userEmail, store_domain: storeDomain }),
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to disconnect Shopify store');
-    }
   } catch (error) {
     console.error('Error disconnecting Shopify store:', error);
     throw error;
@@ -53,14 +42,7 @@ export const disconnectShopifyStore = async (userEmail: string, storeDomain: str
  */
 export const getShopifyRevenueData = async (userEmail: string, storeName: string): Promise<ShopifyRevenueData> => {
   try {
-    const response = await fetch(`/api/shopify/revenue-data?user_email=${encodeURIComponent(userEmail)}&store_name=${encodeURIComponent(storeName)}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to fetch Shopify revenue data');
-    }
-    
-    return await response.json();
+    return await apiFetch<ShopifyRevenueData>(`/api/shopify/revenue-data?user_email=${encodeURIComponent(userEmail)}&store_name=${encodeURIComponent(storeName)}`);
   } catch (error) {
     console.error('Error fetching Shopify revenue data:', error);
     throw error;
@@ -74,14 +56,7 @@ export const getShopifyRevenueData = async (userEmail: string, storeName: string
  */
 export const refreshShopifyToken = async (userEmail: string, storeName: string): Promise<{ message: string }> => {
   try {
-    const response = await fetch(`/api/shopify/refresh-token?user_email=${encodeURIComponent(userEmail)}&store_name=${encodeURIComponent(storeName)}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to refresh Shopify token');
-    }
-    
-    return await response.json();
+    return await apiFetch<{ message: string }>(`/api/shopify/refresh-token?user_email=${encodeURIComponent(userEmail)}&store_name=${encodeURIComponent(storeName)}`);
   } catch (error) {
     console.error('Error refreshing Shopify token:', error);
     throw error;

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       success_url: `${process.env.NEXTAUTH_URL}/dashboard?checkout=success`,
       cancel_url: `${process.env.NEXTAUTH_URL}/pricing?checkout=canceled`,
       metadata: {
-        userId: user?.id,
+        userId: user?.id || '',
         userEmail: session.user.email,
       },
       payment_method_types: ['card'],
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       subscription_data: {
         trial_period_days: 7,
       },
-    });
+    } as Stripe.Checkout.SessionCreateParams);
     
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/utils/apiClient';
 
 const PLANS = [
   {
@@ -74,7 +75,7 @@ export default function Pricing() {
     try {
       setIsLoading(plan.id);
       
-      const response = await fetch('/api/create-checkout-session', {
+      const { url } = await apiFetch<{ url: string }>('/api/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,12 +85,6 @@ export default function Pricing() {
           email: session.user.email,
         }),
       });
-      
-      if (!response.ok) {
-        throw new Error('Checkout session creation failed');
-      }
-      
-      const { url } = await response.json();
       window.location.href = url;
     } catch (error) {
       console.error('Error creating checkout session:', error);
