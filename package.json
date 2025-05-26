@@ -10,7 +10,7 @@
     "deploy:test": "shopify theme push --path=theme --env=test",
     "deploy:prod": "shopify theme push --path=theme --env=prod",
     "lighthouse": "npx @lhci/cli@0.16.x autorun --collect.url=https://${SHOP_URL}",
-    "test": "jest",
+    "test": "node --test",
     "test:e2e": "playwright test"
   },
   "dependencies": {
