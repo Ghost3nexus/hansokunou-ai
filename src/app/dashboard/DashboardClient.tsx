@@ -183,9 +183,14 @@ export default function DashboardClient() {
       {!loading && !error && history.length === 0 && (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
           <p className="text-gray-600">まだ診断履歴がありません。</p>
-          <Link href="/analyze" className="mt-4 inline-block text-blue-600 hover:underline">
-            新しい分析を始める
-          </Link>
+          <div className="mt-4 flex flex-col sm:flex-row justify-center gap-4">
+            <Link href="/analyze" className="inline-block text-blue-600 hover:underline">
+              新しい分析を始める
+            </Link>
+            <Link href="/light-analyze" className="inline-block text-green-600 hover:underline">
+              簡易分析ツールを使う
+            </Link>
+          </div>
         </div>
       )}
       
