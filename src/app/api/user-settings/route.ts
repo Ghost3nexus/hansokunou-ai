@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-options';
 
-export const dynamic = "force-dynamic";
+export const dynamic = "error";
 
 type SessionWithId = {
   user: {

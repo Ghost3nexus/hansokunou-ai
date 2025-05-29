@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export const dynamic = "force-dynamic";
+export const dynamic = "error";
 
 export async function POST(request: Request) {
   try {
