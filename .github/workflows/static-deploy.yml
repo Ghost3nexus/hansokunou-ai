@@ -43,6 +43,10 @@ jobs:
           rm -rf pages
           # Make sure there are no conflicting routes
           if [ -d "src/pages" ]; then rm -rf src/pages; fi
+          
+          # Exclude API routes from static export by adding a .gitignore-like file
+          echo "# Exclude API routes from static export" > .next/export-ignore.json
+          echo '{"api": true}' >> .next/export-ignore.json
 
       - name: Create .env.local for build
         run: |

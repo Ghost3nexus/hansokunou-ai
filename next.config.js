@@ -12,6 +12,16 @@ const nextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
+  distDir: process.env.DIST_DIR || '.next',
+  exportPathMap: async function (defaultPathMap, { dev, dir, outDir, distDir, buildId }) {
+    const filteredPathMap = {};
+    for (const [path, config] of Object.entries(defaultPathMap)) {
+      if (!path.startsWith('/api/')) {
+        filteredPathMap[path] = config;
+      }
+    }
+    return filteredPathMap;
+  },
 };
 
 module.exports = nextConfig;
