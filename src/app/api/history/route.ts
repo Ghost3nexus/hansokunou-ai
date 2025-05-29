@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-options';
 
-export const dynamic = "error";
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
