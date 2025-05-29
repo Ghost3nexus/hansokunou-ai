@@ -5,6 +5,7 @@ on:
     branches:
       - light-analysis-mode
       - dev/mvp
+      - fix/github-pages-deployment
   workflow_dispatch:
 
 permissions:
@@ -33,7 +34,13 @@ jobs:
         run: touch .nojekyll
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+
+      - name: Create .env.local for build
+        run: |
+          echo "NEXTAUTH_URL=https://ghost3nexus.github.io/hansokunou-ai" > .env.local
+          echo "NEXTAUTH_SECRET=static-build-secret" >> .env.local
+          echo "NEXT_PUBLIC_USE_STATIC_API=true" >> .env.local
 
       - name: Build with Next.js
         run: npm run build
