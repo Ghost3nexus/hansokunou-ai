@@ -1,15 +1,28 @@
-import React from 'react';
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+"use client";
+
+import React, { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import LightAnalyzeClient from './LightAnalyzeClient';
 
-export const dynamic = 'force-dynamic';
-
-export default async function LightAnalyzePage() {
-  const session = await auth();
+export default function LightAnalyzePage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push(`/login?next=/light-analyze`);
+    }
+  }, [status, router]);
+  
+  if (status === 'loading') {
+    return <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>;
+  }
   
   if (!session) {
-    redirect(`/login?next=/light-analyze`);
+    return null;
   }
   
   return <LightAnalyzeClient userEmail={session.user?.email || ''} />;

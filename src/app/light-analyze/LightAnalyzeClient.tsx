@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { apiFetch } from '../../utils/apiClient';
+import { analyzeUrl, generatePdf } from '../../utils/staticApi';
 
 interface LightAnalyzeClientProps {
   userEmail: string;
@@ -21,34 +21,21 @@ export default function LightAnalyzeClient({ userEmail }: LightAnalyzeClientProp
     setPdfUrl(null);
     
     try {
-      const data = await apiFetch<any>('/api/light-analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
+      const data = await analyzeUrl(url);
       
       try {
-        const response = await apiFetch('/api/light-generate-pdf', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url,
-            product_names: data.product_names || [],
-            category_links: data.category_links || [],
-            prices: data.prices || [],
-            advice: data.advice,
-            competitor_summary: data.competitor_summary,
-            social_links: data.social_links,
-            diagnostic_scores: data.diagnostic_scores
-          }),
-          responseType: 'blob'
+        const pdfBuffer = await generatePdf({
+          url,
+          product_names: data.product_names || [],
+          category_links: data.category_links || [],
+          prices: data.prices || [],
+          advice: data.advice,
+          competitor_summary: data.competitor_summary,
+          social_links: data.social_links,
+          diagnostic_scores: data.diagnostic_scores
         });
         
-        const blob = response as Blob;
+        const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
         const downloadUrl = window.URL.createObjectURL(blob);
         setPdfUrl(downloadUrl);
       } catch (pdfErr) {
