@@ -31,9 +31,6 @@ jobs:
           node-version: "18"
           cache: 'npm'
 
-      - name: Add .nojekyll file
-        run: touch .nojekyll
-
       - name: Install dependencies
         run: npm install
 
