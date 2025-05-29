@@ -31,7 +31,7 @@ yarn-error.log*
 .vercel
 
 # Python virtual environment
-venv/
+backend/venv/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -62,9 +62,6 @@ backend.log
 
 # IDEs and editors
 .vscode/
-
-# Backend folder (keep in repo but exclude from build)
-/backend
 
 # Frontend folder (transitioning to consolidated structure)
 /frontend/src
