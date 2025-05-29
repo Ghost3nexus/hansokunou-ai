@@ -5,6 +5,7 @@ on:
     branches:
       - light-analysis-mode
       - dev/mvp
+      - fix/github-pages-deployment
   workflow_dispatch:
 
 permissions:
