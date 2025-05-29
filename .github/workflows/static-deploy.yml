@@ -6,6 +6,7 @@ on:
       - light-analysis-mode
       - dev/mvp
       - fix/github-pages-deployment
+      - fix/consolidate-project-structure
   workflow_dispatch:
 
 permissions:
@@ -35,6 +36,13 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Check for conflicting files
+        run: |
+          # Remove any pages directory if it exists
+          rm -rf pages
+          # Make sure there are no conflicting routes
+          if [ -d "src/pages" ]; then rm -rf src/pages; fi
 
       - name: Create .env.local for build
         run: |
