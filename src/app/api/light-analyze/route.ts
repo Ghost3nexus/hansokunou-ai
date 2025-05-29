@@ -3,8 +3,10 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../lib/auth-options';
 import OpenAI from 'openai';
 
+export const dynamic = "force-static";
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-static-export',
 });
 
 export async function POST(request: Request) {

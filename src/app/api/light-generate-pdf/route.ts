@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../../lib/auth-options';
 
+export const dynamic = "force-static";
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
