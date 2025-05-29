@@ -44,9 +44,13 @@ jobs:
           # Make sure there are no conflicting routes
           if [ -d "src/pages" ]; then rm -rf src/pages; fi
           
-          # Exclude API routes from static export by adding a .gitignore-like file
-          echo "# Exclude API routes from static export" > .next/export-ignore.json
-          echo '{"api": true}' >> .next/export-ignore.json
+          # Create a temporary file to track API routes
+          echo "Finding API routes to exclude from build..."
+          find src/app -path "*/api/*" -type d | tee api_routes.txt
+          
+          # Remove API route directories to prevent them from being included in the build
+          cat api_routes.txt | xargs rm -rf
+          echo "Removed API routes from build"
 
       - name: Create .env.local for build
         run: |
