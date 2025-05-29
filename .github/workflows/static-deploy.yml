@@ -6,6 +6,7 @@ on:
       - light-analysis-mode
       - dev/mvp
       - fix/github-pages-deployment
+      - fix/consolidate-project-structure
   workflow_dispatch:
 
 permissions:
@@ -35,6 +36,36 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Check for conflicting files
+        run: |
+          # Remove any pages directory if it exists
+          rm -rf pages
+          # Make sure there are no conflicting routes
+          if [ -d "src/pages" ]; then rm -rf src/pages; fi
+          
+          # Create a temporary file to track API routes
+          echo "Finding API routes to exclude from build..."
+          find src/app -path "*/api/*" -type d | tee api_routes.txt
+          
+          # Remove API route directories to prevent them from being included in the build
+          cat api_routes.txt | xargs rm -rf || true
+          echo "Removed API routes from build"
+          
+          # Create empty API route files to prevent Next.js from complaining
+          mkdir -p src/app/api
+          echo "export const dynamic = 'force-static';" > src/app/api/dummy.ts
+          
+          # Create a static version of the history API
+          mkdir -p src/app/api/history
+          cat > src/app/api/history/route.ts << 'EOF'
+export const dynamic = 'force-static';
+export function GET() {
+  return new Response(JSON.stringify({ items: [] }), {
+    headers: { 'content-type': 'application/json' },
+  });
+}
+EOF
 
       - name: Create .env.local for build
         run: |

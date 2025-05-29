@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 
-export const dynamic = "error";
+export const dynamic = "force-static";
 
 export function generateStaticParams() {
   return [
