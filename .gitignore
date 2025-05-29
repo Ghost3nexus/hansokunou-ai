@@ -65,4 +65,6 @@ backend.log
 
 # Frontend folder (transitioning to consolidated structure)
 /frontend/src
+# But allow frontend/src/lib for auth files
+!/frontend/src/lib/
 
