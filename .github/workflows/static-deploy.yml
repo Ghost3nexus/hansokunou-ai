@@ -1,0 +1,98 @@
+name: Deploy Next.js site to GitHub Pages
+
+on:
+  push:
+    branches:
+      - light-analysis-mode
+      - dev/mvp
+      - fix/github-pages-deployment
+      - fix/consolidate-project-structure
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: 'npm'
+
+      - name: Add .nojekyll file
+        run: touch .nojekyll
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check for conflicting files
+        run: |
+          # Remove any pages directory if it exists
+          rm -rf pages
+          # Make sure there are no conflicting routes
+          if [ -d "src/pages" ]; then rm -rf src/pages; fi
+          
+          # Create a temporary file to track API routes
+          echo "Finding API routes to exclude from build..."
+          find src/app -path "*/api/*" -type d | tee api_routes.txt
+          
+          # Remove API route directories to prevent them from being included in the build
+          cat api_routes.txt | xargs rm -rf || true
+          echo "Removed API routes from build"
+          
+          # Create empty API route files to prevent Next.js from complaining
+          mkdir -p src/app/api
+          echo "export const dynamic = 'force-static';" > src/app/api/dummy.ts
+          
+          # Create a static version of the history API
+          mkdir -p src/app/api/history
+          cat > src/app/api/history/route.ts << 'EOF'
+export const dynamic = 'force-static';
+export function GET() {
+  return new Response(JSON.stringify({ items: [] }), {
+    headers: { 'content-type': 'application/json' },
+  });
+}
+EOF
+
+      - name: Create .env.local for build
+        run: |
+          echo "NEXTAUTH_URL=https://ghost3nexus.github.io/hansokunou-ai" > .env.local
+          echo "NEXTAUTH_SECRET=static-build-secret" >> .env.local
+          echo "NEXT_PUBLIC_USE_STATIC_API=true" >> .env.local
+
+      - name: Build with Next.js
+        run: npm run build
+        env:
+          GITHUB_PAGES: 'true'
+
+      - name: Add .nojekyll to output
+        run: touch out/.nojekyll
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
